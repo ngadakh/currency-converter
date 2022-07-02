@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -13,5 +13,5 @@ db = SQLAlchemy(app)
 db.create_all()
 
 @app.route("/")
-def home():
-    return "Welcome to Flask Currency Converter Project"
+def index():
+    return render_template("index.html")
