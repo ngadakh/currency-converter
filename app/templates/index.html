@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
-{% block content %}
-    <h1>{% block title %} Welcome to Flask Currency Converter Project {% endblock %}</h1>
-{% endblock %}
+<div class="container">
+    {% block content %}
+        <h1>{% block title %} Welcome to Flask Currency Converter Project {% endblock %}</h1>
+        <a href="/login">Log In</a>&ensp;&ensp;
+        <a href="/signup">Sign Up</a>
+    {% endblock %}
+</div>
