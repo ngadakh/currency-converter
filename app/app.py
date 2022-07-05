@@ -51,11 +51,17 @@ def login():
         if user:
             session['id'] = user.id
             session['username'] = user.username
-            return render_template("profile.html", form=form)
+            return render_template("profile.html", user=user)
         else:
             flash('Incorrect username/password')
             return redirect(url_for('login'))
     return render_template("login.html", form=form)
+
+@app.route('/logout')
+def logout():
+    session.pop('id', None)
+    session.pop('username', None)
+    return redirect(url_for('login'))
 
 @app.route('/signup', methods =['GET', 'POST'])
 def signup():
