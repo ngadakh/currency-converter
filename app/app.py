@@ -51,7 +51,7 @@ def login():
         if user:
             session['id'] = user.id
             session['username'] = user.username
-            return render_template("profile.html", user=user)
+            return render_template("user_panel.html", user=user)
         else:
             flash('Incorrect username/password')
             return redirect(url_for('login'))

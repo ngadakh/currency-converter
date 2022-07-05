@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% from "_formhelpers.html" import render_field %}
+
+{% block content %}
+    <h1>{% block title %} Welcome to Flask Currency Converter Project {% endblock %}</h1>
+
+    <div align="center" class="border">
+        <div class="header">
+            <h2 class="word">Welcome, {{ user.username }} </h2>
+        </div></br>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class=flashes>
+                {% for message in messages %}
+                    <div class="msg">{{ message }}</div><br><br>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <h2 class="word">
+            <form method=post>
+                <dl>
+                    <a href="/"> Profile</a>&ensp;|&ensp;
+                    <a href="/"> Wallet</a>&ensp;|&ensp;
+                    <a href="/"> Transfer Money</a>&ensp;|&ensp;
+                    <a href="/logout"> Logout</a>
+                </dl>
+            </form>
+        </h2>
+    </p>
+    </div>
+{% endblock %}
