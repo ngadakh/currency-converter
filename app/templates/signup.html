@@ -9,7 +9,15 @@
 			<div class="header">
 				<h1 class="word">User Registration</h1>
 			</div></br>
-            <div class="msg">{{ msg }}</div><br><br>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <ul class=flashes>
+                    {% for message in messages %}
+                        <div class="msg">{{ message }}</div><br><br>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
 			<h2 class="word">
                 <form method=post>
                     <dl>

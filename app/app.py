@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +21,11 @@ class UserRegistrationForm(Form):
     ])
     confirm = PasswordField('Re-enter password', [validators.DataRequired()])
 
+# User login form
+class UserLoginForm(Form):
+    username = StringField('Username', [validators.DataRequired()])
+    password = PasswordField('Password', [validators.DataRequired()])
+
 # User model
 class User(db.Model):
     id  = db.Column(db.Integer, primary_key = True)
@@ -40,12 +45,21 @@ def index():
 
 @app.route('/login', methods =['GET', 'POST'])
 def login():
-    return render_template("login.html")
+    form = UserLoginForm(request.form)
+    if request.method == 'POST' and form.validate():
+        user = db.session.query(User).filter_by(username=form.username.data).first()
+        if user:
+            session['id'] = user.id
+            session['username'] = user.username
+            return render_template("profile.html", form=form)
+        else:
+            flash('Incorrect username/password')
+            return redirect(url_for('login'))
+    return render_template("login.html", form=form)
 
 @app.route('/signup', methods =['GET', 'POST'])
 def signup():
     form = UserRegistrationForm(request.form)
-    msg = ''
     if request.method == 'POST' and form.validate():
         try:
             user = User(form.username.data, form.email.data, form.password.data)
@@ -56,6 +70,6 @@ def signup():
         except IntegrityError:
             # Roll back the transaction is user is alredy exist in the database
             db.session.rollback()
-            msg = 'User already exists!'
-            return render_template('signup.html', form=form, msg=msg)
-    return render_template('signup.html', form=form, msg=msg)
+            flash('User already exists!')
+            return render_template('signup.html', form=form)
+    return render_template('signup.html', form=form)
