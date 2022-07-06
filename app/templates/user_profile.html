@@ -29,4 +29,15 @@
         </h2>
     </p>
     </div>
+    <div align="center">
+        <h2>User Profile</h2>
+    </div>
+    <div align="left" class="border">
+        <div class="header">
+            <h5> &ensp;Username : {{ user.username }} </h5>
+            <h5> &ensp;Email : {{ user.email }} </h5>
+            <h5> &ensp;Profile Photo : <img width="10%" height="10%" src="{{ url_for('static', filename=user.profile_photo_url) }}" /> </h5>
+            <h5> &ensp;Default Currency : {{ user.default_currency }} </h5>
+        </div></br>
+        </div>
 {% endblock %}
