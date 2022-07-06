@@ -19,12 +19,14 @@
                 {% endif %}
             {% endwith %}
 			<h2 class="word">
-                <form method=post>
+                <form method=post enctype="multipart/form-data">
+                    {{ form.csrf_token }}
                     <dl>
                         {{ render_field(form.username) }}
                         {{ render_field(form.email) }}
                         {{ render_field(form.password) }}
                         {{ render_field(form.confirm) }}
+                        {{ render_field(form.profile_photo) }}
                     </dl>
                   <p><input type=submit value="Sign Up">
 				</form>

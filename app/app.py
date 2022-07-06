@@ -1,8 +1,13 @@
+from os.path import join
+
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 
 from sqlalchemy.exc import IntegrityError
 from wtforms import Form, StringField, PasswordField, validators, EmailField
+from flask_wtf.file import FileField, FileRequired, FileAllowed
+from werkzeug.datastructures import CombinedMultiDict
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -20,6 +25,7 @@ class UserRegistrationForm(Form):
         validators.EqualTo('confirm', message='Passwords must match')
     ])
     confirm = PasswordField('Re-enter password', [validators.DataRequired()])
+    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Images only!')])
 
 # User login form
 class UserLoginForm(Form):
@@ -32,11 +38,13 @@ class User(db.Model):
     username = db.Column(db.String(100), unique=True, nullable = False)
     password = db.Column(db.String(100), nullable = False)
     email = db.Column(db.String, unique=True, nullable=False)
+    profile_photo_url = db.Column(db.String, unique=True, nullable=True)
 
-    def __init__(self, uname, password, email):
+    def __init__(self, uname, password, email, photo_url):
         self.username = uname
         self.password = password
         self.email = email
+        self.profile_photo_url = photo_url
 
 
 @app.route("/")
@@ -65,12 +73,19 @@ def logout():
 
 @app.route('/signup', methods =['GET', 'POST'])
 def signup():
-    form = UserRegistrationForm(request.form)
+    form = UserRegistrationForm(CombinedMultiDict((request.files, request.form)))
     if request.method == 'POST' and form.validate():
         try:
-            user = User(form.username.data, form.email.data, form.password.data)
+            # Save user profile photo
+            file_obj = form.profile_photo.data
+            profile_photo_name = str(form.username.data) + "_" + secure_filename(file_obj.filename)
+            profile_photo_full_path = join(app.config['FILE_UPLOAD_PATH'], 'profile', profile_photo_name)
+            file_obj.save(profile_photo_full_path)
+
+            user = User(form.username.data, form.email.data, form.password.data, profile_photo_full_path)
             db.session.add(user)
             db.session.commit()
+
             flash('User added sucessfully, please login')
             return redirect(url_for('login'))
         except IntegrityError:
