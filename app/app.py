@@ -1,6 +1,3 @@
-from fileinput import filename
-from os.path import join
-
 from flask import Flask, render_template, request, flash, redirect, url_for, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 
@@ -8,9 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from wtforms import Form, StringField, PasswordField, validators, EmailField, SelectField
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from werkzeug.datastructures import CombinedMultiDict
-from werkzeug.utils import secure_filename
 
-from .utils import CurrencyConverter
+from .utils import CurrencyConverter, save_file_locally
 
 app = Flask(__name__)
 
@@ -27,7 +23,15 @@ class UserRegistrationForm(Form):
         validators.EqualTo('confirm', message='Passwords must match')
     ])
     confirm = PasswordField('Re-enter password', [validators.DataRequired()])
-    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Images only!')])
+    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Select images only!')])
+    default_currency = SelectField('default_currency', choices=CurrencyConverter(app).get_all_currencies())
+
+
+class EditUserRegistrationForm(Form):
+    """Edit user registration form to load as HTML with fields"""
+    username = StringField('Username', [validators.DataRequired()])
+    email = EmailField('Email Address', [validators.DataRequired(), validators.Email()])
+    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Select images only!')])
     default_currency = SelectField('default_currency', choices=CurrencyConverter(app).get_all_currencies())
 
 
@@ -46,7 +50,7 @@ class User(db.Model):
     profile_photo_url = db.Column(db.String, unique=True, nullable=True)
     default_currency = db.Column(db.String(100), unique=True, nullable = False)
 
-    def __init__(self, uname, password, email, photo_url, default_currency):
+    def __init__(self, uname, email, password, photo_url, default_currency):
         self.username = uname
         self.password = password
         self.email = email
@@ -89,19 +93,16 @@ def signup():
     form = UserRegistrationForm(CombinedMultiDict((request.files, request.form)))
     if request.method == 'POST' and form.validate():
         try:
-            # Save user profile photo
-            file_obj = form.profile_photo.data
-            filename = secure_filename(file_obj.filename)
-            profile_photo_name = str(form.username.data) + "_" + filename
-            profile_photo_full_path = join(app.config['FILE_UPLOAD_PATH'], profile_photo_name)
-            file_obj.save(profile_photo_full_path)
-
-            user = User(form.username.data, form.email.data, form.password.data, profile_photo_name, form.default_currency.data)
-            db.session.add(user)
-            db.session.commit()
-
-            flash('User added sucessfully, please login')
-            return redirect(url_for('login'))
+            save_file, profile_photo_name = save_file_locally(form, app)
+            if save_file:
+                user = User(form.username.data, form.email.data, form.password.data, profile_photo_name, form.default_currency.data)
+                db.session.add(user)
+                db.session.commit()
+                flash('User added sucessfully, please login')
+                return redirect(url_for('login'))
+            else:
+                err_msg = "Error while adding new user"
+                flash(err_msg)
         except IntegrityError:
             # Roll back the transaction is user is alredy exist in the database
             db.session.rollback()
@@ -118,10 +119,35 @@ def static_dir(path):
 @app.route('/profile', methods =['GET', 'POST'])
 def profile():
     """User profile route to get/update user data"""
-    if request.method == 'GET':
-        user = db.session.query(User).filter_by(username=session['username']).first()
+    form = EditUserRegistrationForm(CombinedMultiDict((request.files, request.form)))
+    user = db.session.query(User).filter_by(username=session['username']).first()
+    if request.method == 'POST':
+        try:
+            save_file, profile_photo_name = save_file_locally(form, app)
+            if save_file:
+                user.username = form.username.data
+                user.email = form.email.data
+                user.profile_photo_url = profile_photo_name
+                user.default_currency = form.default_currency.data
+                db.session.commit()
+                app.logger.info("User info of user '%s' updated sucessfully" % user.username)
+                flash('User info updated successfully, you may need to relogin the application')
+                return render_template("user_panel.html", user=user)
+            else:
+                err_msg = "Error while updating user's info"
+                flash(err_msg)
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error("Error while updating user info", e)
+            flash('Failed to update user info')
+        return render_template("user_profile.html", user=user, form=form, currency_choices=CurrencyConverter(app).get_all_currencies())
+    else:
         if user:
-            return render_template("user_profile.html", user=user)
+            form.username.data = user.username
+            form.email.data = user.email
+            form.profile_photo.data = user.profile_photo_url
+            form.default_currency.data = user.default_currency 
+            return render_template("user_profile.html", user=user, form=form, currency_choices=CurrencyConverter(app).get_all_currencies())
         else:
-            app.logger.error("Invalid User")
+            app.logger.error("User not found in the database, you might have updated the user's info.")
             return redirect(url_for('logout'))

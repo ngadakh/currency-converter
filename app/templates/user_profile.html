@@ -33,11 +33,17 @@
         <h2>User Profile</h2>
     </div>
     <div align="left" class="border">
-        <div class="header">
-            <h5> &ensp;Username : {{ user.username }} </h5>
-            <h5> &ensp;Email : {{ user.email }} </h5>
-            <h5> &ensp;Profile Photo : <img width="10%" height="10%" src="{{ url_for('static', filename=user.profile_photo_url) }}" /> </h5>
-            <h5> &ensp;Default Currency : {{ user.default_currency }} </h5>
-        </div></br>
+        <div class="header"><br>
+            <form method=post enctype="multipart/form-data">
+                {{ form.csrf_token }}
+                    <h5> &ensp; {{ form.username.label }} : {{ form.username }} </h5>
+                    <h5> &ensp; {{ form.email.label }} : {{ form.email }} </h5>
+                    <h5> &ensp; {{ form.profile_photo.label }} : 
+                        <img width="5%" height="5%" src="{{ url_for('static', filename=form.profile_photo.data) }}" /> 
+                        {{ form.profile_photo }} </h5>
+                    <h5> &ensp; Default Currency :  {{form.default_currency}}</h5>
+                </div></br>
+                <p align="center"><input type=submit value="Update"> </p>
+            </form>
         </div>
 {% endblock %}
