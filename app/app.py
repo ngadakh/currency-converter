@@ -6,7 +6,7 @@ from wtforms import Form, StringField, PasswordField, validators, EmailField, Se
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from werkzeug.datastructures import CombinedMultiDict
 
-from .utils import CurrencyConverter, save_file_locally
+from .utils import CurrencyConverter, login_required, save_file_locally
 
 app = Flask(__name__)
 
@@ -31,7 +31,7 @@ class EditUserRegistrationForm(Form):
     """Edit user registration form to load as HTML with fields"""
     username = StringField('Username', [validators.DataRequired()])
     email = EmailField('Email Address', [validators.DataRequired(), validators.Email()])
-    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Select images only!')])
+    profile_photo = FileField('Profile Photo', [FileAllowed(['jpg', 'png'], 'Select images only!')])
     default_currency = SelectField('default_currency', choices=CurrencyConverter(app).get_all_currencies())
 
 
@@ -79,6 +79,7 @@ def login():
     return render_template("login.html", form=form)
 
 @app.route('/logout')
+@login_required
 def logout():
     """Remove session data and logout the user"""
     session.pop('id', None)
@@ -117,6 +118,7 @@ def static_dir(path):
     return send_from_directory("static", path)
 
 @app.route('/profile', methods =['GET', 'POST'])
+@login_required
 def profile():
     """User profile route to get/update user data"""
     form = EditUserRegistrationForm(CombinedMultiDict((request.files, request.form)))

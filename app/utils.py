@@ -1,7 +1,20 @@
-from os.path import join
 import requests
+from os.path import join
+
+from flask import flash, redirect, url_for, session
+from functools import wraps
 from werkzeug.utils import secure_filename
 
+def login_required(f):
+    """This function check session data and redirect to login page if session data does not exists"""
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if "username" in session:
+            return f(*args, **kwargs)
+        else:
+            flash("You need to login first")
+            return redirect(url_for("login"))
+    return wrap
 
 def save_file_locally(form, app):
     """Save file to appropriate location"""
