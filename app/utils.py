@@ -34,14 +34,12 @@ class CurrencyConverter():
     def __init__(self, app) -> None:
         self.app = app
 
-    def get_all_currencies(self):
-        """This function use to fetch all existing currencies from EXCHANGE_RATE_API"""
-        choices = list()
+    def get_exchange_rates(self, currency):
+        """This function use to get exchange rate of all currencies against given currency"""
+        data = ""
         try:
-            # Use USD as base currency
-            response = requests.get(self.app.config["EXCHANGE_RATE_API"])
+            response = requests.get("{0}/{1}".format(self.app.config["EXCHANGE_RATE_API"], currency))
             data = response.json()
-            choices.append(list(zip(data["conversion_rates"].keys(), data["conversion_rates"].keys())))
         except requests.exceptions.RequestException as err:
             self.app.logger.error("RequestException", err)
         except requests.exceptions.HTTPError as errh:
@@ -51,6 +49,13 @@ class CurrencyConverter():
         except requests.exceptions.Timeout as errt:
             self.app.logger.error("Timeout", errt)
         except Exception as e:
-            self.app.logger.error("Error while getting all currencies", e)
+            self.app.logger.error("Error while getting exchange rates", e)
+        
+        return data
 
+    def get_all_currencies(self):
+        """This function use to fetch all existing currencies from EXCHANGE_RATE_API"""
+        choices = list()
+        data = self.get_exchange_rates(self.app.config["BASE_CURRENCY"])
+        choices.append(list(zip(data["conversion_rates"].keys(), data["conversion_rates"].keys())))
         return choices[0]

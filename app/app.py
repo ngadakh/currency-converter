@@ -1,10 +1,7 @@
 from flask import Flask, render_template, request, flash, redirect, url_for, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import ForeignKey
 
 from sqlalchemy.exc import IntegrityError
-from wtforms import Form, StringField, PasswordField, validators, EmailField, SelectField
-from flask_wtf.file import FileField, FileRequired, FileAllowed
 from werkzeug.datastructures import CombinedMultiDict
 
 from .utils import CurrencyConverter, login_required, save_file_locally
@@ -15,66 +12,8 @@ app = Flask(__name__)
 app.config.from_object('config')
 db = SQLAlchemy(app)
 
-class UserRegistrationForm(Form):
-    """User registration form to load as HTML with fields"""
-    username = StringField('Username', [validators.DataRequired()])
-    email = EmailField('Email Address', [validators.DataRequired(), validators.Email()])
-    password = PasswordField('New Password', [
-        validators.DataRequired(),
-        validators.EqualTo('confirm', message='Passwords must match')
-    ])
-    confirm = PasswordField('Re-enter password', [validators.DataRequired()])
-    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Select images only!')])
-    default_currency = SelectField('default_currency', choices=CurrencyConverter(app).get_all_currencies())
-
-
-class EditUserRegistrationForm(Form):
-    """Edit user registration form to load as HTML with fields"""
-    username = StringField('Username', [validators.DataRequired()])
-    email = EmailField('Email Address', [validators.DataRequired(), validators.Email()])
-    profile_photo = FileField('Profile Photo', [FileRequired(), FileAllowed(['jpg', 'png'], 'Select images only!')])
-    default_currency = SelectField('default_currency', choices=CurrencyConverter(app).get_all_currencies())
-
-class UserLoginForm(Form):
-    """User login form"""
-    username = StringField('Username', [validators.DataRequired()])
-    password = PasswordField('Password', [validators.DataRequired()])
-
-# User model
-class User(db.Model):
-    """User database model""" 
-    __tablename__ = 'user'
-    id  = db.Column(db.Integer, primary_key = True)
-    username = db.Column(db.String(100), unique=True, nullable = False)
-    password = db.Column(db.String(100), nullable = False)
-    email = db.Column(db.String, unique=True, nullable=False)
-    profile_photo_url = db.Column(db.String, unique=True, nullable=True)
-    default_currency = db.Column(db.String(100), unique=True, nullable = False)
-
-    def __init__(self, uname, email, password, photo_url, default_currency):
-        self.username = uname
-        self.password = password
-        self.email = email
-        self.profile_photo_url = photo_url
-        self.default_currency = default_currency
-
-
-class UserWalletForm(Form):
-    """User wallet where user can transfer and add money"""
-    amount = StringField("Amount", [validators.DataRequired()])
-
-
-# User wallet model
-class UserWallet(db.Model):
-    """User wallet database model"""
-    __tablename__ = 'user_wallet'
-    wallet_id = db.Column(db.Integer, primary_key = True)
-    user_id =  db.Column(db.Integer, db.ForeignKey('user.id'))
-    amount = db.Column(db.Integer, nullable = False)
-
-    def __init__(self, user_id, amount):
-        self.user_id = user_id
-        self.amount = amount
+from .model import User, UserWallet
+from .forms import UserRegistrationForm, EditUserRegistrationForm, UserLoginForm, UserWalletForm, TransferMoneyForm
 
 
 @app.route("/")
@@ -115,6 +54,7 @@ def signup():
         try:
             save_file, profile_photo_name = save_file_locally(form, app)
             if save_file:
+                # TODO: User signup not working
                 user = User(form.username.data, form.email.data, form.password.data, profile_photo_name, form.default_currency.data)
                 db.session.add(user)
                 db.session.commit()
@@ -141,7 +81,7 @@ def static_dir(path):
 def profile():
     """User profile route to get/update user data"""
     form = EditUserRegistrationForm(CombinedMultiDict((request.files, request.form)))
-    user = db.session.query(User).filter_by(username=session['username']).first()
+    user = User.get_user(session['username'])
     if request.method == 'POST':
         try:
             save_file, profile_photo_name = save_file_locally(form, app)
@@ -149,11 +89,13 @@ def profile():
                 user.username = form.username.data
                 user.email = form.email.data
                 user.profile_photo_url = profile_photo_name
+                # TODO: update wallet amount if currency gets updated
                 user.default_currency = form.default_currency.data
                 db.session.commit()
+                # TODO: User update not working even we get sucess message
                 app.logger.info("User info of user '%s' updated sucessfully" % user.username)
                 flash('User info updated successfully, you may need to relogin the application')
-                return render_template("user_panel.html", user=user)
+                return redirect(url_for('logout'))
             else:
                 err_msg = "Error while updating user's info"
                 flash(err_msg)
@@ -179,14 +121,14 @@ def profile():
 def wallet():
     """User wallet where user can transfer money to another user"""
     form = UserWalletForm(request.form)
-    user = db.session.query(User).filter_by(username=session['username']).first()
+    user = User.get_user(session['username'])
     user_wallet = db.session.query(UserWallet).filter_by(user_id=user.id).first()
     if request.method == 'POST':
         try:
-            user_wallet = db.session.query(UserWallet).filter_by(user_id=user.id).first()
+            user_wallet = UserWallet.get_user_wallet(user)
             if user_wallet:
                 # TODO: Try to use db.session.merge()
-                new_amount = int(user_wallet.amount) + int(form.amount.data)
+                new_amount = float(user_wallet.amount) + float(form.amount.data)
                 user_wallet.amount = new_amount
                 db.session.commit()
                 form.amount.data = new_amount
@@ -209,3 +151,44 @@ def wallet():
             form.amount.data = user_wallet.amount
     return render_template("user_wallet.html", user=user, form=form)
 
+@app.route('/transfer_money', methods =['GET', 'POST'])
+@login_required
+def transfer_money():
+    """This function is use to transfer money to another user"""
+    # TODO: Avoid transfering amount to same/current/payer user
+    form = TransferMoneyForm(request.form)
+    payer_user = User.get_user(session['username'])
+    payer_user_wallet =  UserWallet.get_user_wallet(payer_user)
+    if request.method == 'POST':
+        try:
+            amt_to_be_transfer = form.transfer_amount.data
+            if UserWallet.validate_amount(payer_user, amt_to_be_transfer):
+                payee_user = User.get_user(form.transfer_amount_to_user.data)
+                payee_user_wallet =  UserWallet.get_user_wallet(payee_user)
+               
+                # Get exchange rate for target currency
+                exchange_rates = CurrencyConverter(app).get_exchange_rates(payer_user.default_currency)
+                get_target_exchange_rate = exchange_rates["conversion_rates"][payee_user.default_currency]
+
+                # Update wallet of payee user
+                payee_user_new_amount = float(payee_user_wallet.amount) + (float(amt_to_be_transfer) * float(get_target_exchange_rate))
+                UserWallet.update_user_wallet(payee_user_wallet, payee_user_new_amount)
+
+                # Update wallet of payer user
+                payer_user_new_amount = float(payer_user_wallet.amount) - float(amt_to_be_transfer)  
+                UserWallet.update_user_wallet(payer_user_wallet, payer_user_new_amount)                  
+               
+                msg = "Amount transferred to user '{}' successfully".format(payee_user.username)
+            else:
+                msg = "Please enter valid amount"
+            app.logger.info(msg)
+            flash(msg)
+            return redirect(url_for('transfer_money'))
+        except Exception as e:
+            db.session.rollback()
+            err_msg = "Failed to transfer money to user"
+            app.logger.error(err_msg, e)
+            flash(err_msg)
+    else:
+        form.transfer_amount.data = 0
+    return render_template("transfer_money.html", user=payer_user, user_wallet=payer_user_wallet, form=form)
