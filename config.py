@@ -21,3 +21,9 @@ EXCHANGE_RATE_API = "https://v6.exchangerate-api.com/v6/{0}/latest".format(EXCHA
 
 # Password alogorithms to encrypt password
 PASSWORD_SCHEMES = ['md5_crypt']
+
+
+class TestConfiguration(object):
+    TESTING = True
+    WTF_CSRF_ENABLED = False
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
