@@ -1,7 +1,5 @@
-from flask_sqlalchemy import SQLAlchemy
-from .app import app
-
-db = SQLAlchemy(app)
+from sqlalchemy_utils import PasswordType
+from .app import db, app
 
 # User model
 class User(db.Model):
@@ -9,12 +7,17 @@ class User(db.Model):
     __tablename__ = 'user'
     id  = db.Column(db.Integer, primary_key = True)
     username = db.Column(db.String(100), unique=True, nullable = False)
-    password = db.Column(db.String(100), nullable = False)
+    password = db.Column(PasswordType(
+         onload=lambda **kwargs: dict(
+                schemes=app.config['PASSWORD_SCHEMES'],
+                **kwargs
+            ),
+    ), nullable = False)
     email = db.Column(db.String, unique=True, nullable=False)
     profile_photo_url = db.Column(db.String, unique=True, nullable=True)
     default_currency = db.Column(db.String(100), unique=True, nullable = False)
 
-    def __init__(self, uname, email, password, photo_url, default_currency):
+    def __init__(self, uname, password, email, photo_url, default_currency):
         self.username = uname
         self.password = password
         self.email = email

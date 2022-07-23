@@ -191,4 +191,5 @@ def transfer_money():
             flash(err_msg)
     else:
         form.transfer_amount.data = 0
+        form.transfer_amount_to_user.choices = [user.username for user in User.query.all()]
     return render_template("transfer_money.html", user=payer_user, user_wallet=payer_user_wallet, form=form)

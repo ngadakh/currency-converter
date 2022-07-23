@@ -40,4 +40,4 @@ class UserWalletForm(Form):
 class TransferMoneyForm(Form):
     """Transfer money form"""
     transfer_amount = StringField("Amount to be transfer", [validators.DataRequired()])
-    transfer_amount_to_user = SelectField('select_user', choices=[user.username for user in User.query.all()])
+    transfer_amount_to_user = SelectField('select_user', choices=[])
