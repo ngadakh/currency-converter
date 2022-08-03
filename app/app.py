@@ -15,6 +15,7 @@ db = SQLAlchemy(app)
 from .model import User, UserWallet
 from .forms import UserRegistrationForm, EditUserRegistrationForm, UserLoginForm, UserWalletForm, TransferMoneyForm
 
+# TODO: use proper error handlng if user directly hit any API like /user, /wallet
 
 @app.route("/")
 def index():
@@ -50,12 +51,12 @@ def signup():
 
     # Combine files and form to upload profile photo of user
     form = UserRegistrationForm(CombinedMultiDict((request.files, request.form)))
+    print("form.validate()>>>>>", form.validate(), request.form)
     if request.method == 'POST' and form.validate():
         try:
             save_file, profile_photo_name = save_file_locally(form, app)
             if save_file:
-                # TODO: User signup not working
-                user = User(form.username.data, form.email.data, form.password.data, profile_photo_name, form.default_currency.data)
+                user = User(form.username.data, form.password.data, form.email.data, profile_photo_name, form.default_currency.data)
                 db.session.add(user)
                 db.session.commit()
                 flash('User added sucessfully, please login')
@@ -88,11 +89,11 @@ def profile():
             if save_file:
                 user.username = form.username.data
                 user.email = form.email.data
+                # TODO: Remove existing user profile pic file on update
                 user.profile_photo_url = profile_photo_name
                 # TODO: update wallet amount if currency gets updated
                 user.default_currency = form.default_currency.data
                 db.session.commit()
-                # TODO: User update not working even we get sucess message
                 app.logger.info("User info of user '%s' updated sucessfully" % user.username)
                 flash('User info updated successfully, you may need to relogin the application')
                 return redirect(url_for('logout'))
@@ -127,7 +128,6 @@ def wallet():
         try:
             user_wallet = UserWallet.get_user_wallet(user)
             if user_wallet:
-                # TODO: Try to use db.session.merge()
                 new_amount = float(user_wallet.amount) + float(form.amount.data)
                 user_wallet.amount = new_amount
                 db.session.commit()
