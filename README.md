@@ -50,3 +50,29 @@ Currently, the class `TestConfiguration` is already added in `config.py` but we 
 3. Get the coverage report in HTML format
 
         coverage html
+
+
+
+# Docker Containerization
+
+### Steps to create image and run the application
+
+1. Create `Dockerfile` on project path and add required image build steps in it. 
+        
+2. Create a docker image
+
+        docker image build -t currency_converter .
+
+3. Check docker images
+
+        docker images
+
+4. Run the application
+
+        docker run -p 8080:8080 -d currency_converter
+
+5. Open your favourite browser and open 
+
+        http://localhost:8080
+
+
